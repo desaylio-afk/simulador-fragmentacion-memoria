@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Fragmentación de Memoria</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .transition-all-smooth { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 h-full flex flex-col overflow-x-hidden">
+
+    <header class="bg-slate-800 border-b border-slate-700 py-4 px-6 shadow-md flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="bg-indigo-600 p-2.5 rounded-xl shadow-lg shadow-indigo-500/30">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight text-white">Simulador de Fragmentación de Memoria</h1>
+                <p class="text-xs text-slate-400">Proyecto Universitario • Memoria Total: <span id="lblTotalMemory" class="font-semibold text-indigo-400">100 MB</span></p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button onclick="openInfoModal()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3.5 py-2 rounded-lg text-sm font-medium transition-all flex items-center space-x-1.5 shadow-sm">
+                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span>Teoría Educativa</span>
+            </button>
+            <button onclick="resetSimulation()" class="bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 px-3.5 py-2 rounded-lg text-sm font-medium transition-all flex items-center space-x-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                <span>Reiniciar</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-[1600px] w-full mx-auto overflow-y-auto">
+        
+        <!-- Left Panel: Controls & Metrics -->
+        <section class="lg:col-span-4 flex flex-col space-y-6">
+            
+            <!-- Allocation Strategy Card -->
+            <div class="bg-slate-800 border border-slate-700/80 rounded-2xl p-5 shadow-xl">
+                <h2 class="text-base font-semibold text-white mb-3 flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+                    <span>Estrategia y Configuración</span>
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Estrategia de Asignación</label>
+                        <select id="allocationStrategy" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="first">Primer Ajuste (First-Fit)</option>
+                            <option value="best">Mejor Ajuste (Best-Fit)</option>
+                            <option value="worst">Peor Ajuste (Worst-Fit)</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Tipo de Memoria</label>
+                            <select id="memoryType" onchange="toggleMemoryType()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="variable">Particiones Variables</option>
+                                <option value="fixed">Particiones Fijas</option>
+                            </select>
+                        </div>
+                        <div id="fixedBlockSizeContainer" class="hidden">
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Tamaño de Bloque Fijo</label>
+                            <input type="number" id="fixedBlockSizeInput" value="20" min="5" max="50" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add Process Form Card -->
+            <div class="bg-slate-800 border border-slate-700/80 rounded-2xl p-5 shadow-xl">
+                <h2 class="text-base font-semibold text-white mb-3 flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>Nuevo Proceso</span>
+                </h2>
+                <form id="processForm" onsubmit="handleCreateProcess(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Nombre del Proceso</label>
+                        <input type="text" id="procName" required placeholder="Ej. Proceso A" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs text-slate-400 mb-1">
+                            <span>Tamaño Requerido</span>
+                            <span id="procSizeVal" class="font-semibold text-emerald-400">15 MB</span>
+                        </div>
+                        <input type="range" id="procSize" min="1" max="50" value="15" oninput="document.getElementById('procSizeVal').innerText = this.value + ' MB'" class="w-full accent-emerald-500 bg-slate-900 cursor-pointer">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 pt-1">
+                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 px-4 rounded-xl text-sm transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center space-x-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                            <span>Asignar</span>
+                        </button>
+                        <button type="button" onclick="loadTestCase()" class="bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 font-medium py-2.5 px-4 rounded-xl text-sm transition-all flex items-center justify-center space-x-1.5">
+                            <span>Caso Prueba 100MB</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Metrics Summary Card -->
+            <div class="bg-slate-800 border border-slate-700/80 rounded-2xl p-5 shadow-xl flex-1">
+                <h2 class="text-base font-semibold text-white mb-3 flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <span>Métricas de Memoria</span>
+                </h2>
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="bg-slate-900/70 border border-slate-700/50 p-3 rounded-xl">
+                        <span class="text-xs text-slate-400 block">Fragmentación Interna</span>
+                        <span id="metricInternal" class="text-lg font-bold text-amber-400">0 MB</span>
+                    </div>
+                    <div class="bg-slate-900/70 border border-slate-700/50 p-3 rounded-xl">
+                        <span class="text-xs text-slate-400 block">Fragmentación Externa</span>
+                        <span id="metricExternal" class="text-lg font-bold text-rose-400">0 MB</span>
+                    </div>
+                    <div class="bg-slate-900/70 border border-slate-700/50 p-3 rounded-xl">
+                        <span class="text-xs text-slate-400 block">Memoria Libre</span>
+                        <span id="metricFree" class="text-lg font-bold text-emerald-400">100 MB</span>
+                    </div>
+                    <div class="bg-slate-900/70 border border-slate-700/50 p-3 rounded-xl">
+                        <span class="text-xs text-slate-400 block">Memoria Ocupada</span>
+                        <span id="metricAllocated" class="text-lg font-bold text-indigo-400">0 MB</span>
+                    </div>
+                </div>
+                <div class="h-36 w-full relative">
+                    <canvas id="metricsChart"></canvas>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Right Panel: Canvas Visualizer & Process Table -->
+        <section class="lg:col-span-8 flex flex-col space-y-6">
+            
+            <!-- Canvas Visualizer Card -->
+            <div class="bg-slate-800 border border-slate-700/80 rounded-2xl p-5 shadow-xl flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-base font-semibold text-white flex items-center space-x-2">
+                        <span class="w-2 h-2 rounded-full bg-cyan-500"></span>
+                        <span>Mapa de Memoria (100 MB RAM)</span>
+                    </h2>
+                    <div class="flex items-center space-x-3 text-xs">
+                        <span class="flex items-center space-x-1"><span class="w-3 h-3 bg-emerald-500/80 rounded-sm inline-block border border-emerald-400"></span><span class="text-slate-300">Libre</span></span>
+                        <span class="flex items-center space-x-1"><span class="w-3 h-3 bg-indigo-600 rounded-sm inline-block border border-indigo-400"></span><span class="text-slate-300">Asignado</span></span>
+                        <span class="flex items-center space-x-1"><span class="w-3 h-3 bg-amber-500 rounded-sm inline-block border border-amber-400"></span><span class="text-slate-300">Frag. Interna</span></span>
+                    </div>
+                </div>
+                
+                <!-- Interactive Canvas Container -->
+                <div class="bg-slate-900 border border-slate-700/80 rounded-xl p-4 relative overflow-hidden flex flex-col items-center justify-center">
+                    <canvas id="memoryCanvas" class="w-full h-32 rounded-lg cursor-pointer"></canvas>
+                    <div id="canvasTooltip" class="absolute hidden bg-slate-800 text-xs text-slate-200 px-3 py-1.5 rounded-lg border border-slate-600 shadow-xl pointer-events-none z-20"></div>
+                </div>
+                <p class="text-xs text-slate-400 mt-2 text-center">💡 Haz clic en cualquier bloque o proceso activo en el mapa o tabla para liberarlo de la memoria.</p>
+            </div>
+
+            <!-- Active Processes Table Card -->
+            <div class="bg-slate-800 border border-slate-700/80 rounded-2xl p-5 shadow-xl flex-1 flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-base font-semibold text-white flex items-center space-x-2">
+                        <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                        <span>Procesos y Bloques en Memoria</span>
+                    </h2>
+                    <span id="activeProcessCount" class="text-xs bg-slate-700 text-slate-300 px-2.5 py-1 rounded-full font-medium">0 Procesos Activos</span>
+                </div>
+                
+                <div class="overflow-x-auto flex-1 max-h-64">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-700 text-xs text-slate-400 font-semibold uppercase">
+                                <th class="py-3 px-4">ID / Nombre</th>
+                                <th class="py-3 px-4">Tamaño Solicitado</th>
+                                <th class="py-3 px-4">Bloque Asignado</th>
+                                <th class="py-3 px-4">Frag. Interna</th>
+                                <th class="py-3 px-4 text-right">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="processTableBody" class="divide-y divide-slate-700/50 text-sm">
+                            <tr>
+                                <td colspan="5" class="py-6 text-center text-slate-500 italic">No hay procesos activos en la memoria.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <div id="infoModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                <h3 class="text-lg font-bold text-white flex items-center space-x-2">
+                    <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                    <span>Guía Teórica: Fragmentación de Memoria</span>
+                </h3>
+                <button onclick="closeInfoModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="space-y-3 text-sm text-slate-300 max-h-[60vh] overflow-y-auto pr-2">
+                <p>La fragmentación es un fenómeno en los sistemas operativos donde el espacio de memoria se desaprovecha, impidiendo que se asignen nuevos procesos a pesar de tener suficiente memoria global libre.</p>
+                
+                <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-700/60 space-y-1">
+                    <h4 class="font-semibold text-amber-400">1. Fragmentación Interna</h4>
+                    <p class="text-xs text-slate-400">Ocurre cuando la memoria se divide en bloques fijos (o cuando se asigna un bloque ligeramente mayor al proceso). El espacio sobrante dentro del bloque asignado no puede ser utilizado por ningún otro proceso.</p>
+                </div>
+
+                <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-700/60 space-y-1">
+                    <h4 class="font-semibold text-rose-400">2. Fragmentación Externa</h4>
+                    <p class="text-xs text-slate-400">Ocurre en particiones variables. A medida que los procesos entran y salen, la memoria libre se divide en pequeños huecos dispersos. Aunque la suma total de memoria libre baste para un nuevo proceso, ninguno de los huecos individuales es lo suficientemente grande.</p>
+                </div>
+
+                <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-700/60 space-y-1">
+                    <h4 class="font-semibold text-indigo-400">3. Estrategias de Asignación</h4>
+                    <ul class="text-xs text-slate-400 space-y-1 list-disc list-inside">
+                        <li><strong>Primer Ajuste (First-Fit):</strong> Asigna el primer bloque libre que tenga el tamaño suficiente. Es rápido.</li>
+                        <li><strong>Mejor Ajuste (Best-Fit):</strong> Busca el bloque libre cuyo tamaño se ajuste mejor al proceso (mínimo desperdicio).</li>
+                        <li><strong>Peor Ajuste (Worst-Fit):</strong> Asigna el bloque libre más grande disponible, dejando un remanente útil.</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="pt-3 border-t border-slate-700 flex justify-end">
+                <button onclick="closeInfoModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all">Entendido</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const TOTAL_MEMORY = 100; // 100 MB
+        let memoryBlocks = [];
+        let chartInstance = null;
+
+        // Initialize memory model
+        function initMemory() {
+            const memoryType = document.getElementById('memoryType').value;
+            memoryBlocks = [];
+
+            if (memoryType === 'variable') {
+                // Initial state: One big free block of 100 MB
+                memoryBlocks.push({
+                    id: 'free_0',
+                    type: 'FREE',
+                    start: 0,
+                    size: TOTAL_MEMORY,
+                    processName: null,
+                    internalFrag: 0
+                });
+            } else {
+                // Fixed partitions
+                const blockSize = parseInt(document.getElementById('fixedBlockSizeInput').value) || 20;
+                let currentPos = 0;
+                let blockId = 0;
+                while (currentPos < TOTAL_MEMORY) {
+                    let actualSize = Math.min(blockSize, TOTAL_MEMORY - currentPos);
+                    memoryBlocks.push({
+                        id: 'block_' + blockId++,
+                        type: 'FREE',
+                        start: currentPos,
+                        size: actualSize,
+                        processName: null,
+                        internalFrag: 0,
+                        allocatedSize: 0
+                    });
+                    currentPos += actualSize;
+                }
+            }
+            updateUI();
+        }
+
+        function toggleMemoryType() {
+            const type = document.getElementById('memoryType').value;
+            const container = document.getElementById('fixedBlockSizeContainer');
+            if (type === 'fixed') {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+            initMemory();
+        }
+
+        // Handle process creation
+        function handleCreateProcess(e) {
+            e.preventDefault();
+            const name = document.getElementById('procName').value.trim();
+            const size = parseInt(document.getElementById('procSize').value);
+            const strategy = document.getElementById('allocationStrategy').value;
+            const memoryType = document.getElementById('memoryType').value;
+
+            if (!name) return;
+
+            // Check if process name already exists
+            const exists = memoryBlocks.some(b => b.processName === name);
+            if (exists) {
+                alert('Ya existe un proceso activo con ese nombre.');
+                return;
+            }
+
+            let allocated = false;
+
+            if (memoryType === 'variable') {
+                allocated = allocateVariableMemory(name, size, strategy);
+            } else {
+                allocated = allocateFixedMemory(name, size, strategy);
+            }
+
+            if (!allocated) {
+                alert('No se pudo asignar el proceso. Memoria insuficiente o fragmentación externa.');
+            } else {
+                document.getElementById('procName').value = '';
+                // Randomize next size or reset
+                document.getElementById('procSize').value = 15;
+                document.getElementById('procSizeVal').innerText = '15 MB';
+                updateUI();
+            }
+        }
+
+        // Variable partitioning allocation
+        function allocateVariableMemory(name, size, strategy) {
+            // Find free blocks
+            let freeBlocks = memoryBlocks.map((b, idx) => ({ ...b, index: idx })).filter(b => b.type === 'FREE');
+            if (freeBlocks.length === 0) return false;
+
+            // Filter blocks that can fit the process
+            let validBlocks = freeBlocks.filter(b => b.size >= size);
+            if (validBlocks.length === 0) return false;
+
+            let targetBlock = null;
+
+            if (strategy === 'first') {
+                targetBlock = validBlocks[0];
+            } else if (strategy === 'best') {
+                targetBlock = validBlocks.reduce((prev, curr) => (curr.size < prev.size) ? curr : prev);
+            } else if (strategy === 'worst') {
+                targetBlock = validBlocks.reduce((prev, curr) => (curr.size > prev.size) ? curr : prev);
+            }
+
+            if (!targetBlock) return false;
+
+            let idx = targetBlock.index;
+            let originalBlock = memoryBlocks[idx];
+
+            if (originalBlock.size === size) {
+                // Exact fit
+                memoryBlocks[idx] = {
+                    ...originalBlock,
+                    type: 'ALLOCATED',
+                    processName: name,
+                    allocatedSize: size,
+                    internalFrag: 0
+                };
+            } else {
+                // Split block
+                let newAllocatedBlock = {
+                    id: 'alloc_' + Date.now(),
+                    type: 'ALLOCATED',
+                    start: originalBlock.start,
+                    size: size,
+                    processName: name,
+                    allocatedSize: size,
+                    internalFrag: 0
+                };
+                let newFreeBlock = {
+                    id: 'free_' + Date.now(),
+                    type: 'FREE',
+                    start: originalBlock.start + size,
+                    size: originalBlock.size - size,
+                    processName: null,
+                    internalFrag: 0
+                };
+                memoryBlocks.splice(idx, 1, newAllocatedBlock, newFreeBlock);
+            }
+
+            return true;
+        }
+
+        // Fixed partitioning allocation
+        function allocateFixedMemory(name, size, strategy) {
+            let freeBlocks = memoryBlocks.map((b, idx) => ({ ...b, index: idx })).filter(b => b.type === 'FREE');
+            let validBlocks = freeBlocks.filter(b => b.size >= size);
+            if (validBlocks.length === 0) return false;
+
+            let targetBlock = null;
+
+            if (strategy === 'first') {
+                targetBlock = validBlocks[0];
+            } else if (strategy === 'best') {
+                targetBlock = validBlocks.reduce((prev, curr) => (curr.size < prev.size) ? curr : prev);
+            } else if (strategy === 'worst') {
+                targetBlock = validBlocks.reduce((prev, curr) => (curr.size > prev.size) ? curr : prev);
+            }
+
+            if (!targetBlock) return false;
+
+            let idx = targetBlock.index;
+            let internalFrag = targetBlock.size - size;
+
+            memoryBlocks[idx] = {
+                ...memoryBlocks[idx],
+                type: 'ALLOCATED',
+                processName: name,
+                allocatedSize: size,
+                internalFrag: internalFrag
+            };
+
+            return true;
+        }
+
+        // Free a process by name or block id
+        function freeProcess(processName) {
+            const memoryType = document.getElementById('memoryType').value;
+            
+            if (memoryType === 'variable') {
+                let idx = memoryBlocks.findIndex(b => b.processName === processName);
+                if (idx === -1) return;
+
+                memoryBlocks[idx].type = 'FREE';
+                memoryBlocks[idx].processName = null;
+                memoryBlocks[idx].allocatedSize = 0;
+                memoryBlocks[idx].internalFrag = 0;
+
+                // Coalesce adjacent free blocks
+                coalesceMemory();
+            } else {
+                let idx = memoryBlocks.findIndex(b => b.processName === processName);
+                if (idx === -1) return;
+
+                memoryBlocks[idx].type = 'FREE';
+                memoryBlocks[idx].processName = null;
+                memoryBlocks[idx].allocatedSize = 0;
+                memoryBlocks[idx].internalFrag = 0;
+            }
+
+            updateUI();
+        }
+
+        // Coalesce adjacent free blocks in variable partitioning
+        function coalesceMemory() {
+            let merged = [];
+            for (let i = 0; i < memoryBlocks.length; i++) {
+                let current = memoryBlocks[i];
+                if (merged.length > 0 && merged[merged.length - 1].type === 'FREE' && current.type === 'FREE') {
+                    merged[merged.length - 1].size += current.size;
+                } else {
+                    merged.push({ ...current });
+                }
+            }
+            memoryBlocks = merged;
+        }
+
+        // Load predefined test case (100 MB scenario)
+        function loadTestCase() {
+            document.getElementById('memoryType').value = 'variable';
+            document.getElementById('fixedBlockSizeContainer').classList.add('hidden');
+            document.getElementById('allocationStrategy').value = 'first';
+            initMemory();
+
+            // Simulate sequence of allocations and deallocations to showcase external fragmentation
+            const testSequence = [
+                { name: 'Proc-A', size: 25 },
+                { name: 'Proc-B', size: 20 },
+                { name: 'Proc-C', size: 15 },
+                { name: 'Proc-D', size: 20 }
+            ];
+
+            testSequence.forEach(p => {
+                allocateVariableMemory(p.name, p.size, 'first');
+            });
+
+            // Free Proc-B and Proc-D to create external fragmentation gaps
+            freeProcess('Proc-B');
+            freeProcess('Proc-D');
+
+            updateUI();
+        }
+
+        // Calculate metrics
+        function calculateMetrics() {
+            let totalAllocated = 0;
+            let totalInternalFrag = 0;
+            let totalFree = 0;
+
+            memoryBlocks.forEach(b => {
+                if (b.type === 'ALLOCATED') {
+                    totalAllocated += (b.allocatedSize || b.size);
+                    totalInternalFrag += (b.internalFrag || 0);
+                } else {
+                    totalFree += b.size;
+                }
+            });
+
+            // External fragmentation: sum of free blocks when there are multiple free blocks or total free is high but contiguous blocks can't fit a large process
+            let freeBlocksList = memoryBlocks.filter(b => b.type === 'FREE');
+            let maxContiguousFree = freeBlocksList.length > 0 ? Math.max(...freeBlocksList.map(b => b.size)) : 0;
+            
+            // External frag is total free minus the largest contiguous block available for allocation
+            let externalFrag = totalFree - maxContiguousFree;
+            if (externalFrag < 0) externalFrag = 0;
+
+            return {
+                allocated: totalAllocated,
+                free: totalFree,
+                internal: totalInternalFrag,
+                external: externalFrag
+            };
+        }
+
+        // Update UI & Render Canvas
+        function updateUI() {
+            const metrics = calculateMetrics();
+
+            document.getElementById('metricAllocated').innerText = metrics.allocated + ' MB';
+            document.getElementById('metricFree').innerText = metrics.free + ' MB';
+            document.getElementById('metricInternal').innerText = metrics.internal + ' MB';
+            document.getElementById('metricExternal').innerText = metrics.external + ' MB';
+
+            // Render Table
+            const tbody = document.getElementById('processTableBody');
+            const activeBlocks = memoryBlocks.filter(b => b.type === 'ALLOCATED');
+            document.getElementById('activeProcessCount').innerText = activeBlocks.length + ' Procesos Activos';
+
+            if (activeBlocks.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-500 italic">No hay procesos activos en la memoria.</td></tr>`;
+            } else {
+                tbody.innerHTML = activeBlocks.map(b => `
+                    <tr class="hover:bg-slate-700/30 transition-all">
+                        <td class="py-3 px-4 font-semibold text-white flex items-center space-x-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                            <span>${b.processName}</span>
+                        </td>
+                        <td class="py-3 px-4 text-slate-300">${b.allocatedSize || b.size} MB</td>
+                        <td class="py-3 px-4 text-slate-400 text-xs">Pos: ${b.start} MB (${b.size} MB)</td>
+                        <td class="py-3 px-4 text-amber-400 font-medium">${b.internalFrag || 0} MB</td>
+                        <td class="py-3 px-4 text-right">
+                            <button onclick="freeProcess('${b.processName}')" class="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 px-3 py-1.5 rounded-lg text-xs font-medium transition-all">Liberar</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            renderCanvas();
+            updateChart(metrics);
+        }
+
+        // Render Canvas Memory Map
+        function renderCanvas() {
+            const canvas = document.getElementById('memoryCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set high DPI resolution for crisp canvas
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = 100 * dpr;
+            ctx.scale(dpr, dpr);
+
+            ctx.clearRect(0, 0, rect.width, 100);
+
+            const width = rect.width;
+            const height = 100;
+            const scaleX = width / TOTAL_MEMORY;
+
+            memoryBlocks.forEach((block, index) => {
+                let x = block.start * scaleX;
+                let w = block.size * scaleX;
+
+                // Draw block background
+                if (block.type === 'FREE') {
+                    ctx.fillStyle = '#065f46'; // Emerald dark
+                    ctx.strokeStyle = '#10b981';
+                } else {
+                    ctx.fillStyle = '#4f46e5'; // Indigo
+                    ctx.strokeStyle = '#818cf8';
+                }
+
+                ctx.fillRect(x + 1, 10, w - 2, height - 20);
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(x + 1, 10, w - 2, height - 20);
+
+                // Draw text if block is wide enough
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(x + 2, 10, w - 4, height - 20);
+                ctx.clip();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '11px Inter, sans-serif';
+                ctx.textAlign = 'center';
+
+                if (w > 45) {
+                    if (block.type === 'FREE') {
+                        ctx.fillText('LIBRE', x + w / 2, 45);
+                        ctx.font = '9px Inter, sans-serif';
+                        ctx.fillStyle = '#a7f3d0';
+                        ctx.fillText(block.size + ' MB', x + w / 2, 60);
+                    } else {
+                        ctx.fillText(block.processName, x + w / 2, 42);
+                        ctx.font = '9px Inter, sans-serif';
+                        ctx.fillStyle = '#c7d2fe';
+                        ctx.fillText(block.allocatedSize + ' MB', x + w / 2, 57);
+                        if (block.internalFrag > 0) {
+                            ctx.fillStyle = '#f59e0b';
+                            ctx.fillText(`Frag: ${block.internalFrag}M`, x + w / 2, 70);
+                        }
+                    }
+                }
+                ctx.restore();
+            });
+        }
+
+        // Chart.js Metrics Doughnut
+        function updateChart(metrics) {
+            const ctx = document.getElementById('metricsChart').getContext('2d');
+            
+            if (chartInstance) {
+                chartInstance.data.datasets[0].data = [metrics.allocated, metrics.free, metrics.internal, metrics.external];
+                chartInstance.update();
+                return;
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Ocupada', 'Libre', 'Frag. Interna', 'Frag. Externa'],
+                    datasets: [{
+                        data: [metrics.allocated, metrics.free, metrics.internal, metrics.external],
+                        backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#f43f5e'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                boxWidth: 10,
+                                font: { size: 10, family: 'Inter' },
+                                color: '#94a3b8'
+                            }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        // Canvas Click Handler to Free Processes
+        document.getElementById('memoryCanvas').addEventListener('click', function(e) {
+            const rect = this.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const scaleX = rect.width / TOTAL_MEMORY;
+            const clickedMb = clickX / scaleX;
+
+            let targetBlock = memoryBlocks.find(b => clickedMb >= b.start && clickedMb <= (b.start + b.size));
+            if (targetBlock && targetBlock.type === 'ALLOCATED' && targetBlock.processName) {
+                freeProcess(targetBlock.processName);
+            }
+        });
+
+        function openInfoModal() { document.getElementById('infoModal').classList.remove('hidden'); }
+        function closeInfoModal() { document.getElementById('infoModal').classList.add('hidden'); }
+        function resetSimulation() { initMemory(); }
+
+        window.onload = function() {
+            initMemory();
+            window.addEventListener('resize', renderCanvas);
+        };
+    </script>
+</body>
+</html>
